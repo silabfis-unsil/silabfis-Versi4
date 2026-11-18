@@ -1301,6 +1301,17 @@
                 detail: String(a.detail || '')
               })).filter(a => a.timestamp).reverse();
             }
+            if (Array.isArray(data.calibrations) && data.calibrations.length > 0) {
+           maintenanceLogs = data.calibrations.map(m => ({
+             id: String(m.id || ''),
+             date: String(m.date || ''),
+             itemCode: String(m.itemCode || ''),
+             itemName: String(m.itemName || ''),
+             type: String(m.type || ''),
+             notes: String(m.notes || ''),
+             actor: String(m.actor || '')
+           })).filter(m => m.id).reverse();
+         }
 
             saveAllStorage();
             if (currentUser) {
@@ -2345,6 +2356,7 @@
 
       maintenanceLogs.unshift(newLog);
       saveAllStorage();
+      postToWebApp({ action: 'ADD_MAINTENANCE', maintenance: newLog });
       logAudit('Pemeliharaan & Kalibrasi', `Mencatat ${type} pada ${item.code} (${item.name}) -> Status baru: ${resultCond}.`);
       refreshAllViews();
       e.target.reset();
