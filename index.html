@@ -61,17 +61,17 @@
       body * {
         visibility: hidden;
       }
-      #print-qr-area, #print-qr-area * {
-        visibility: visible;
-      }
-      #print-qr-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        background: white !important;
-        padding: 12px;
-      }
+      #print-qr-area, #print-qr-area *, #print-ba-area, #print-ba-area * {
+     visibility: visible;
+   }
+   #print-qr-area, #print-ba-area {
+     position: absolute;
+     left: 0;
+     top: 0;
+     width: 100%;
+     background: white !important;
+     padding: 16px;
+   }
       .no-print {
         display: none !important;
       }
@@ -3019,6 +3019,111 @@
         </button>
       `).join('');
     }
+    // ==================== IN-APP SMART NOTIFICATIONS ====================
+  function toggleNotificationDropdown() {
+    const dd = document.getElementById('notif-dropdown');
+    if (dd) dd.classList.toggle('hidden');
+  }
+
+  document.addEventListener('click', (e) => {
+    const dd = document.getElementById('notif-dropdown');
+    const btn = document.getElementById('notif-bell-btn');
+    if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) {
+      dd.classList.add('hidden');
+    }
+  });
+
+  function renderSmartNotifications() {
+    const badge = document.getElementById('notif-badge');
+    const countLabel = document.getElementById('notif-count-label');
+    const container = document.getElementById('notif-list-container');
+    if (!badge || !container || !currentUser) return;
+
+    const alerts = [];
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isStaff = currentUser.role === 'Laboran' || currentUser.role === 'Dosen';
+
+    loans.forEach(l => {
+      if (l.status === 'Dipinjam' && l.returnDate && l.returnDate <= todayStr) {
+        if (isStaff || l.borrowerUsername === currentUser.username) {
+          const isOverdue = l.returnDate < todayStr;
+          alerts.push({
+            type: 'danger',
+            tab: 'sirkulasi',
+            badge: isOverdue ? 'TERLAMBAT KEMBALI' : 'JATUH TEMPO HARI INI',
+            title: `${l.itemName} (${l.qty} unit)`,
+            desc: `Peminjam: ${l.borrowerName} • Batas: ${l.returnDate}`
+          });
+        }
+      }
+    });
+
+    if (isStaff) {
+      loans.filter(l => l.status === 'Menunggu Persetujuan').forEach(l => {
+        alerts.push({
+          type: 'warning',
+          tab: 'sirkulasi',
+          badge: 'MENUNGGU PERSETUJUAN',
+          title: `Pengajuan: ${l.itemName} (${l.qty} unit)`,
+          desc: `Oleh ${l.borrowerName} (${l.purpose})`
+        });
+      });
+
+      inventory.filter(i => i.condition !== 'Baik').forEach(i => {
+        alerts.push({
+          type: 'info',
+          tab: 'pemeliharaan',
+          badge: i.condition.toUpperCase(),
+          title: `[${i.code}] ${i.name}`,
+          desc: `Lokasi: ${i.location} — Segera jadwalkan tindakan.`
+        });
+      });
+    } else {
+      loans.filter(l => l.borrowerUsername === currentUser.username && (l.status === 'Dipinjam' || l.status === 'Ditolak')).slice(0, 3).forEach(l => {
+        alerts.push({
+          type: l.status === 'Dipinjam' ? 'success' : 'danger',
+          tab: 'sirkulasi',
+          badge: l.status === 'Dipinjam' ? 'PEMINJAMAN DISETUJUI' : 'PENGAJUAN DITOLAK',
+          title: `${l.itemName} (${l.qty} unit)`,
+          desc: `Jadwal kembali: ${l.returnDate}`
+        });
+      });
+    }
+
+    if (alerts.length > 0) {
+      badge.textContent = alerts.length > 9 ? '9+' : alerts.length;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+    countLabel.textContent = `${alerts.length} Peringatan`;
+
+    if (alerts.length === 0) {
+      container.innerHTML = `
+        <div class="p-6 text-center text-slate-400">
+          <i class="fa-solid fa-circle-check text-emerald-500 text-xl mb-1.5 block"></i>
+          Semua sirkulasi dan kondisi alat terpantau aman.
+        </div>
+      `;
+      return;
+    }
+
+    const pillColors = {
+      danger: 'bg-rose-100 text-rose-800',
+      warning: 'bg-amber-100 text-amber-800',
+      info: 'bg-blue-100 text-blue-800',
+      success: 'bg-emerald-100 text-emerald-800'
+    };
+
+    container.innerHTML = alerts.map(a => `
+      <button type="button" onclick="switchModuleTab('${a.tab}'); toggleNotificationDropdown();"
+        class="w-full text-left p-3.5 hover:bg-slate-50 transition block">
+        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold mb-1 ${pillColors[a.type] || pillColors.info}">${a.badge}</span>
+        <div class="font-bold text-slate-900 line-clamp-1">${a.title}</div>
+        <div class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">${a.desc}</div>
+      </button>
+    `).join('');
+  }
   </script>
 </body>
 </html>
