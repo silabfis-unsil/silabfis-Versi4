@@ -329,6 +329,27 @@
 
         <!-- User Profile & Logout -->
         <div class="flex items-center gap-3">
+          <!-- Notification Bell & Dropdown -->
+          <div class="relative">
+            <button type="button" onclick="toggleNotificationDropdown()" id="notif-bell-btn" title="Pusat Notifikasi Otomatis"
+              class="relative w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 flex items-center justify-center transition">
+              <i class="fa-solid fa-bell text-sm"></i>
+              <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow">0</span>
+            </button>
+
+            <div id="notif-dropdown" class="hidden absolute right-0 mt-2.5 w-80 sm:w-96 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50">
+              <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-bell text-amber-400 text-xs"></i>
+                  <span class="text-xs font-bold tracking-wide">Notifikasi Otomatis SILABFIS</span>
+                </div>
+                <span id="notif-count-label" class="text-[10px] px-2 py-0.5 rounded-full bg-blue-700 text-blue-100 font-bold">0 Peringatan</span>
+              </div>
+              <div id="notif-list-container" class="max-h-80 overflow-y-auto divide-y divide-slate-100 text-xs">
+                <!-- Diisi otomatis oleh JavaScript -->
+              </div>
+            </div>
+          </div>
           <div class="text-right hidden sm:block">
             <div id="nav-user-name" class="text-xs font-bold text-white">Nama Pengguna</div>
             <div class="flex items-center justify-end gap-1.5 mt-0.5">
@@ -1842,6 +1863,7 @@
         renderAdminUsersTable();
         updateAdminPolicyUI();
       }
+      renderSmartNotifications();
     }
 
     // ==================== GOOGLE SHEETS SYNC ====================
@@ -2884,6 +2906,118 @@
           showToast('Database demo SILABFIS telah dikembalikan ke pengaturan awal.', 'success');
         }
       });
+    }
+
+    // ==================== IN-APP SMART NOTIFICATIONS ====================
+    function toggleNotificationDropdown() {
+      const dd = document.getElementById('notif-dropdown');
+      if (dd) dd.classList.toggle('hidden');
+    }
+
+    // Tutup dropdown otomatis jika klik di luar area lonceng
+    document.addEventListener('click', (e) => {
+      const dd = document.getElementById('notif-dropdown');
+      const btn = document.getElementById('notif-bell-btn');
+      if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) {
+        dd.classList.add('hidden');
+      }
+    });
+
+    function renderSmartNotifications() {
+      const badge = document.getElementById('notif-badge');
+      const countLabel = document.getElementById('notif-count-label');
+      const container = document.getElementById('notif-list-container');
+      if (!badge || !container || !currentUser) return;
+
+      const alerts = [];
+      const todayStr = new Date().toISOString().split('T')[0];
+      const isStaff = currentUser.role === 'Laboran' || currentUser.role === 'Dosen';
+
+      // 1. Cek Peminjaman Jatuh Tempo / Terlambat
+      loans.forEach(l => {
+        if (l.status === 'Dipinjam' && l.returnDate && l.returnDate <= todayStr) {
+          if (isStaff || l.borrowerUsername === currentUser.username) {
+            const isOverdue = l.returnDate < todayStr;
+            alerts.push({
+              type: 'danger',
+              tab: 'sirkulasi',
+              badge: isOverdue ? 'TERLAMBAT KEMBALI' : 'JATUH TEMPO HARI INI',
+              title: `${l.itemName} (${l.qty} unit)`,
+              desc: `Peminjam: ${l.borrowerName} • Batas: ${l.returnDate}`
+            });
+          }
+        }
+      });
+
+      // 2. Cek Pengajuan Baru Menunggu Persetujuan (Khusus Laboran & Dosen)
+      if (isStaff) {
+        loans.filter(l => l.status === 'Menunggu Persetujuan').forEach(l => {
+          alerts.push({
+            type: 'warning',
+            tab: 'sirkulasi',
+            badge: 'MENUNGGU PERSETUJUAN',
+            title: `Pengajuan: ${l.itemName} (${l.qty} unit)`,
+            desc: `Oleh ${l.borrowerName} (${l.purpose})`
+          });
+        });
+
+        // 3. Cek Alat Perlu Kalibrasi atau Rusak (Khusus Laboran & Dosen)
+        inventory.filter(i => i.condition !== 'Baik').forEach(i => {
+          alerts.push({
+            type: 'info',
+            tab: 'pemeliharaan',
+            badge: i.condition.toUpperCase(),
+            title: `[${i.code}] ${i.name}`,
+            desc: `Lokasi: ${i.location} — Segera jadwalkan tindakan.`
+          });
+        });
+      } else {
+        // Notifikasi untuk Mahasiswa jika pengajuannya baru saja Disetujui / Ditolak
+        loans.filter(l => l.borrowerUsername === currentUser.username && (l.status === 'Dipinjam' || l.status === 'Ditolak')).slice(0, 3).forEach(l => {
+          alerts.push({
+            type: l.status === 'Dipinjam' ? 'success' : 'danger',
+            tab: 'sirkulasi',
+            badge: l.status === 'Dipinjam' ? 'PEMINJAMAN DISETUJUI' : 'PENGAJUAN DITOLAK',
+            title: `${l.itemName} (${l.qty} unit)`,
+            desc: `Jadwal kembali: ${l.returnDate}`
+          });
+        });
+      }
+
+      // Perbarui angka badge pada lonceng
+      if (alerts.length > 0) {
+        badge.textContent = alerts.length > 9 ? '9+' : alerts.length;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+      countLabel.textContent = `${alerts.length} Peringatan`;
+
+      if (alerts.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-slate-400">
+            <i class="fa-solid fa-circle-check text-emerald-500 text-xl mb-1.5 block"></i>
+            Semua sirkulasi dan kondisi alat terpantau aman.
+          </div>
+        `;
+        return;
+      }
+
+      const pillColors = {
+        danger: 'bg-rose-100 text-rose-800',
+        warning: 'bg-amber-100 text-amber-800',
+        info: 'bg-blue-100 text-blue-800',
+        success: 'bg-emerald-100 text-emerald-800'
+      };
+
+      container.innerHTML = alerts.map(a => `
+        <button type="button" onclick="switchModuleTab('${a.tab}'); toggleNotificationDropdown();"
+          class="w-full text-left p-3.5 hover:bg-slate-50 transition block">
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold mb-1 ${pillColors[a.type] || pillColors.info}">${a.badge}</span>
+          <div class="font-bold text-slate-900 line-clamp-1">${a.title}</div>
+          <div class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">${a.desc}</div>
+        </button>
+      `).join('');
     }
   </script>
 </body>
