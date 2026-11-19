@@ -719,7 +719,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
               <select id="qr-category-select" onchange="renderQRGrid()" class="px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl outline-none font-medium">
-                <option value="ALL">Semua Kategori (16 Sampel Pertama)</option>
+                <option value="ALL">Semua Kategori (Semua Alat)</option>
                 <option value="Mekanika">Mekanika</option>
                 <option value="Listrik & Magnet">Listrik & Magnet</option>
                 <option value="Gelombang & Optik">Gelombang & Optik</option>
@@ -2462,7 +2462,7 @@
       const grid = document.getElementById('print-qr-area');
       const cat = document.getElementById('qr-category-select').value;
       const items = cat === 'ALL'
-        ? inventory.slice(0, 16)
+        ? inventory
         : inventory.filter(i => i.category === cat);
 
       grid.innerHTML = items.map(item => `
