@@ -2480,7 +2480,7 @@
         if (el) {
           el.innerHTML = '';
           new QRCode(el, {
-            text: `SILABFIS-UNSIL|${item.code}|${item.name}|${item.location}`,
+             text: item.sopUrl || `SILABFIS-UNSIL|${item.code}|${item.name}|${item.location}`,
             width: 88,
             height: 88,
             colorDark: '#0f172a',
