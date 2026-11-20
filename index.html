@@ -1876,9 +1876,22 @@
           maintTableCard.classList.add('lg:col-span-12');
         }
       }
+      // 4. Audit Trail ISO (Khusus Dosen & Laboran)
+      const navTabAudit = document.getElementById('nav-tab-audit');
+      if (navTabAudit) {
+        if (isStaff) {
+          navTabAudit.classList.remove('hidden');
+        } else {
+          navTabAudit.classList.add('hidden');
+        }
+      }
     }
 
     function switchModuleTab(tabName) {
+      if (tabName === 'audit' && (!currentUser || (currentUser.role !== 'Laboran' && currentUser.role !== 'Dosen'))) {
+        showToast('Akses ditolak: Jejak Audit hanya untuk Dosen & Laboran.', 'error');
+        return;
+      }
       // Hide all module sections
       document.querySelectorAll('.module-section').forEach(sec => sec.classList.add('hidden'));
       // Reset tab styles
