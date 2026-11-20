@@ -646,7 +646,7 @@
       <!-- ==================== TAB 4: KALIBRASI & PEMELIHARAAN ==================== -->
       <section id="module-pemeliharaan" class="module-section hidden space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div class="lg:col-span-4 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm h-fit">
+          <div id="maint-form-card" class="lg:col-span-4 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm h-fit">
             <h3 class="text-base font-extrabold text-slate-900 mb-1 flex items-center gap-2">
               <i class="fa-solid fa-wrench text-blue-700"></i> Catat Log Kalibrasi / Perbaikan
             </h3>
@@ -687,7 +687,7 @@
             </form>
           </div>
 
-          <div class="lg:col-span-8 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
+          <div id="maint-table-card" class="lg:col-span-8 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
             <h3 class="text-base font-extrabold text-slate-900 mb-4">Riwayat Log Pemeliharaan & Kalibrasi Instrumen</h3>
             <div class="overflow-x-auto rounded-xl border border-slate-200">
               <table class="w-full text-left border-collapse">
@@ -1862,6 +1862,20 @@
       } else {
         btnAddItem.classList.add('hidden');
       }
+      // 3. Kalibrasi & Pemeliharaan (Mahasiswa hanya Viewer)
+      const maintFormCard = document.getElementById('maint-form-card');
+      const maintTableCard = document.getElementById('maint-table-card');
+      if (maintFormCard && maintTableCard) {
+        if (isStaff) {
+          maintFormCard.classList.remove('hidden');
+          maintTableCard.classList.remove('lg:col-span-12');
+          maintTableCard.classList.add('lg:col-span-8');
+        } else {
+          maintFormCard.classList.add('hidden');
+          maintTableCard.classList.remove('lg:col-span-8');
+          maintTableCard.classList.add('lg:col-span-12');
+        }
+      }
     }
 
     function switchModuleTab(tabName) {
@@ -2386,6 +2400,14 @@
     // ==================== MAINTENANCE & CALIBRATION ====================
     function handleMaintenanceSubmit(e) {
       e.preventDefault();
+      if (!currentUser || (currentUser.role !== 'Laboran' && currentUser.role !== 'Dosen')) {
+        showDialog({
+          title: 'Akses Ditolak (RBAC)',
+          message: 'Mahasiswa hanya memiliki akses lihat (viewer) pada modul Kalibrasi & Pemeliharaan.',
+          type: 'danger'
+        });
+        return;
+      }
       const itemId = document.getElementById('maint-item-select').value;
       const type = document.getElementById('maint-type').value;
       const resultCond = document.getElementById('maint-result-cond').value;
